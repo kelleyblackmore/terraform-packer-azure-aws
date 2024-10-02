@@ -19,22 +19,32 @@
     var: fstab_content.stdout_lines
 
 - name: Check boot partition
-  command: mount | grep /boot
+  shell: mount | grep /boot
   register: boot_mount
   changed_when: false
+  failed_when: false  # This prevents the task from failing if /boot is not mounted
 
 - name: Display boot partition info
   debug:
     var: boot_mount.stdout_lines
 
+- name: Check if /boot is mounted
+  debug:
+    msg: "/boot is {{ 'mounted' if boot_mount.rc == 0 else 'not mounted' }}"
+
 - name: Check LVM modules in initramfs
   shell: lsinitrd /boot/initramfs-$(uname -r).img | grep lvm
   register: lvm_in_initramfs
   changed_when: false
+  failed_when: false  # This prevents the task from failing if LVM modules are not found
 
 - name: Display LVM modules in initramfs
   debug:
     var: lvm_in_initramfs.stdout_lines
+
+- name: Check if LVM modules are in initramfs
+  debug:
+    msg: "LVM modules are {{ 'present' if lvm_in_initramfs.rc == 0 else 'not present' }} in initramfs"
 
 - name: Verify GRUB default target
   command: grep GRUB_DEFAULT /etc/default/grub
@@ -46,7 +56,7 @@
     var: grub_default.stdout_lines
 
 - name: Check if /boot is on LVM
-  command: lvs --noheadings -o lv_path | grep /boot
+  shell: lvs --noheadings -o lv_path | grep /boot
   register: boot_on_lvm
   changed_when: false
   failed_when: false
@@ -54,3 +64,20 @@
 - name: Display if /boot is on LVM
   debug:
     msg: "/boot is {{ 'on' if boot_on_lvm.rc == 0 else 'not on' }} LVM"
+
+- name: Collect boot-related information
+  shell: |
+    echo "GRUB Configuration:"
+    cat /boot/grub2/grub.cfg | grep -E '^menuentry|root='
+    echo "Kernel Command Line:"
+    cat /proc/cmdline
+    echo "LVM Configuration:"
+    lvs
+    vgs
+    pvs
+  register: boot_info
+  changed_when: false
+
+- name: Display boot-related information
+  debug:
+    var: boot_info.stdout_lines
