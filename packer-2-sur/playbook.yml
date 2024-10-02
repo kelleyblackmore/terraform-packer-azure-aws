@@ -26,4 +26,5 @@
         - vg: "{{ lvm_volume_group }}"
           lv: var
           size: 2G
+    - role: boot_check
 
