@@ -1,0 +1,89 @@
+---
+- name: Set Ansible to use /tmp for temporary files
+  set_fact:
+    ansible_remote_tmp: /tmp
+
+- name: Check SELinux status before operations
+  command: getenforce
+  register: selinux_before
+  changed_when: false
+
+- name: Display SELinux status before operations
+  debug:
+    var: selinux_before.stdout
+
+- name: Create XFS filesystems on logical volumes
+  filesystem:
+    fstype: "{{ filesystem_type }}"
+    dev: "/dev/{{ lvm_vg_name }}/{{ item.name }}"
+  loop: "{{ lvm_logical_volumes }}"
+  become: true
+
+- name: Create base mount points
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /var
+    - /var/log
+  become: true
+
+- name: Create other mount points
+  file:
+    path: "{{ item.mount_point }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ lvm_logical_volumes }}"
+  when: item.mount_point not in ['/var', '/var/log', '/var/log/audit']
+  become: true
+
+- name: Create /var/log/audit with specific permissions
+  file:
+    path: /var/log/audit
+    state: directory
+    mode: '0750'
+  become: true
+
+- name: Mount LVM volumes
+  include_tasks: mount_volume.yml
+  loop: "{{ lvm_logical_volumes }}"
+  loop_control:
+    loop_var: mount_item
+
+- name: Check all mounted volumes
+  command: mount
+  register: all_mounts
+  changed_when: false
+  become: true
+
+- name: Display all mounted volumes
+  debug:
+    var: all_mounts.stdout_lines
+
+- name: Update /etc/fstab
+  lineinfile:
+    path: /etc/fstab
+    line: "/dev/{{ lvm_vg_name }}/{{ item.name }} {{ item.mount_point }} {{ filesystem_type }} defaults 0 0"
+    state: present
+  loop: "{{ lvm_logical_volumes }}"
+  become: true
+
+- name: Check SELinux status after operations
+  command: getenforce
+  register: selinux_after
+  changed_when: false
+
+- name: Display SELinux status after operations
+  debug:
+    var: selinux_after.stdout
+
+- name: Check system logs for any errors
+  command: journalctl -p err -n 50
+  register: system_logs
+  changed_when: false
+  ignore_errors: yes
+
+- name: Display system logs
+  debug:
+    var: system_logs.stdout_lines

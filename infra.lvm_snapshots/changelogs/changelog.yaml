@@ -1,0 +1,136 @@
+ancestor: null
+releases:
+  1.0.0:
+    release_date: '2023-08-03'
+  1.0.1:
+    changes:
+      major_changes:
+      - Initial MVP release
+      minor_changes:
+      - Add boot backup support
+      - Add support for checking before resizing logical volumes
+    fragments:
+    - boot_backup.yml
+    - check_before_resize.yml
+    - release.yml
+    release_date: '2023-08-04'
+  1.0.2:
+    changes:
+      bugfixes:
+      - Existing Snapshots with Different Name Cause verify_no_existing_snapshot.yml
+        to Fail
+      minor_changes:
+      - Create snapshots with normalized sizes
+    fragments:
+    - create_snapshots_with_normalized_sizes.yml
+    - filtering_by_lvname_on_existing_snapshot_check.yml
+    release_date: '2023-08-31'
+  1.0.3:
+    changes:
+      bugfixes:
+      - Add task to ensure tar package is present
+      - Grub needs reinstall if /boot is on LVM
+      - Wrong kernel version booting after rolling back
+      minor_changes:
+      - Changed the lvm_snapshots_boot_backup var default to false
+      - Removed unimplemented lvm_snapshots_use_boom var from the docs
+      - Revert - wait for snapshot to drain before returning
+    fragments:
+    - fix-lvm-grub.yml
+    - minor-var-changes.yml
+    - revert-wait-for-drain.yml
+    - tar-present.yml
+    - wrong-kernel.yml
+    release_date: '2023-11-29'
+  1.1.0:
+    changes:
+      major_changes:
+      - New role, bigboot, to increase the boot partition while moving, and shrinking
+        if needed, the adjacent partition
+      - New role, initramfs, to execute an atomic flow of building and using a temporary
+        initramfs in a reboot and restoring the original one
+      - New role, shrink_lv, to decrease logical volume size along with the filesystem
+    fragments:
+    - add-bigboot-role.yml
+    - add-shrink-lv.yml
+    release_date: '2023-11-30'
+  1.1.1:
+    changes:
+      bugfixes:
+      - Fix "Failed to list block device properties" error
+      - Fix dracut path
+    fragments:
+    - fix_entries.yml
+    - no_sbin_dracut.yml
+    release_date: '2023-12-05'
+  1.1.2:
+    changes:
+      minor_changes:
+      - Updated links in docs and workflows to reflect move to redhat-cop org
+    fragments:
+    - update_links.yml
+    release_date: '2023-12-13'
+  2.0.0:
+    changes:
+      breaking_changes:
+      - Split lvm_snapshots role into snapshot_create, snapshot_revert and snapshot_remove
+      minor_changes:
+      - bigboot - Rename internal variables with role name prefix
+      - initramfs - Rename internal variables with role name prefix
+      - shrink_lv - Rename internal variables with role name prefix
+    fragments:
+    - bigboot-internal-variable-names.yml
+    - initramfs-internal-variable-names.yml
+    - shrinklv-internal-variable-names.yml
+    - split-lvm-snapshot_role.yml
+    release_date: '2024-01-10'
+  2.0.1:
+    changes:
+      bugfixes:
+      - Fix release workflow prechecks
+      minor_changes:
+      - Add publish to Automation Hub to release workflow
+    fragments:
+    - automation_hub_release.yml
+    release_date: '2024-01-11'
+  2.0.2:
+    changes:
+      bugfixes:
+      - Clean up bad math in bigboot.sh
+      - Fix bigboot device not found error
+      - Fix bigboot fail when autoactivation property not set
+      - Fix vgs not found error
+      - Round down requested size to multiple of extent size
+      - Shorten bigboot.sh usage help message to not exceed the kmsg buffer
+      - Use sectors with sfdisk
+      minor_changes:
+      - Add bigboot progress messages so inpatient operators don't think their server
+        is hung
+    fragments:
+    - autoactivate.yml
+    - fix_maths.yml
+    - nvme_fix.yml
+    release_date: '2024-03-07'
+  2.0.3:
+    changes:
+      bugfixes:
+      - Fix how locking is disabled for newer LVM versions
+      - Fix missing role metadata
+      - Fix potential space exhaustion when restoring previous initramfs
+    fragments:
+    - autoactivate.yml
+    - fix_image_copy.yml
+    - fix_lvm_config.yml
+    release_date: '2024-04-25'
+  2.1.0:
+    changes:
+      major_changes:
+      - add bigboot support for Btrfs next partition
+      minor_changes:
+      - do bigboot LVM changes with Ansible instead of pre-mount hook
+      - new bigboot_partition_size variable to make bigboot role more idempotent
+      - show console log output from bigboot even if quiet kernel arg is set
+    fragments:
+    - btrfs_bigboot.yml
+    - more_idempotent.yml
+    release_date: '2024-07-15'

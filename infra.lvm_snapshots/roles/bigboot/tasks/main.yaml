@@ -1,0 +1,58 @@
+---
+- name: Make sure the required related facts are available
+  ansible.builtin.setup:
+    gather_subset:
+    - "!all"
+    - "!min"
+    - mounts
+    - devices
+
+- name: Validate initramfs preflight
+  ansible.builtin.include_role:
+    name: initramfs
+    tasks_from: preflight
+
+- name: Get boot device info
+  ansible.builtin.include_tasks:
+    file: get_boot_device_info.yml
+
+- name: Convert bigboot_partition_size to bytes
+  ansible.builtin.set_fact:
+    bigboot_partition_size_bytes: "{{ bigboot_partition_size | ansible.builtin.human_to_bytes }}"
+  when: bigboot_partition_size | default('', true) | length > 0
+
+- name: Convert bigboot_size to bytes
+  ansible.builtin.set_fact:
+    bigboot_size_bytes: "{{ bigboot_size | ansible.builtin.human_to_bytes }}"
+  when: bigboot_partition_size_bytes is undefined and bigboot_size | default('', true) | length > 0
+
+- name: Calculate bigboot increase
+  ansible.builtin.set_fact:
+    bigboot_increase_bytes: "{{ bigboot_partition_size_bytes | default(bigboot_boot_device_bytes, true) | int -
+        bigboot_boot_device_bytes | int +
+        bigboot_size_bytes | default('0', true) | int }}"
+
+- name: Prepare Btrfs for bigboot
+  ansible.builtin.include_tasks:
+    file: prep_btrfs.yml
+  when:
+  - bigboot_increase_bytes | int > 0
+  - bigboot_next_partition_btrfs is defined
+
+- name: Prepare LVM for bigboot
+  ansible.builtin.include_tasks:
+    file: prep_lvm.yml
+  when:
+  - bigboot_increase_bytes | int > 0
+  - bigboot_next_partition_vg is defined
+
+- name: Configure pre-mount hook and reboot
+  ansible.builtin.include_tasks:
+    file: do_bigboot_reboot.yml
+  when:
+  - bigboot_increase_bytes | int > 0
+
+- name: Validate increase requested
+  ansible.builtin.debug:
+    msg: "Nothing to do! Boot partition already equal to or greater than requested size."
+  when: bigboot_increase_bytes | int <= 0

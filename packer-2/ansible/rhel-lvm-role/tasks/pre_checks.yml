@@ -1,0 +1,64 @@
+---
+# tasks/pre_checks.yml
+
+- name: Gather Ansible device facts
+  setup:
+    gather_subset:
+      - hardware
+  become: true
+
+- name: Get root device from ansible_mounts
+  set_fact:
+    root_device: "{{ ansible_mounts | selectattr('mount', 'equalto', '/') | map(attribute='device') | first }}"
+
+- name: Get root device basename
+  set_fact:
+    root_device_name: "{{ root_device | basename | regex_replace('p?[0-9]+$', '') }}"
+
+- name: Get all disks
+  set_fact:
+    all_disks: "{{ ansible_devices.keys() | list }}"
+
+- name: Filter available disks (exclude root and those with partitions)
+  set_fact:
+    candidate_disks: >-
+      {{
+        all_disks
+        | difference([root_device_name])
+        | select('match', '^sd[a-z]+$|^hd[a-z]+$|^vd[a-z]+$|^xvd[a-z]+$|^nvme[0-9]+n[0-9]+$')
+        | list
+      }}
+
+- name: Fail if no suitable disk is found
+  fail:
+    msg: "No suitable disk found for partitioning."
+  when: candidate_disks | length == 0
+
+- name: Set target disk
+  set_fact:
+    target_disk: "/dev/{{ candidate_disks[0] }}"
+
+- name: Determine partition prefix
+  set_fact:
+    partition_prefix: "{{ 'p' if (target_disk is search('nvme|mmcblk')) else '' }}"
+
+- name: Get partition information for target disk
+  command: lsblk -nlo NAME,TYPE {{ target_disk }}
+  register: target_disk_partitions
+  changed_when: false
+
+- name: Set target partition or use whole disk
+  set_fact:
+    target_partition: "{{ target_disk }}"
+
+- name: Check for partitions and update target if found
+  set_fact:
+    target_partition: "/dev/{{ item.split()[0] }}"
+  when: item.split()[1] == 'part'
+  loop: "{{ target_disk_partitions.stdout_lines }}"
+  loop_control:
+    loop_var: item
+
+- name: Display target partition or disk
+  debug:
+    msg: "Target for LVM: {{ target_partition }}"

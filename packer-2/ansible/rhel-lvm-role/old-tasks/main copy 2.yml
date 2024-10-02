@@ -1,0 +1,100 @@
+---
+# tasks/main.yml
+
+- name: Install LVM2 package
+  dnf:
+    name: lvm2
+    state: present
+  become: true
+
+- name: Gather block devices information
+  setup:
+    gather_subset:
+      - hardware
+
+- name: Identify unpartitioned NVMe block devices
+  set_fact:
+    lvm_physical_devices: >-
+      {{
+        ansible_facts.devices
+        | dict2items
+        | selectattr('value.links.ids', 'defined')
+        | selectattr('value.partitions', 'equalto', {})
+        | selectattr('key', 'match', 'nvme.*n1$')
+        | map(attribute='key')
+        | map('regex_replace', '^', '/dev/')
+        | list
+      }}
+
+- debug:
+    msg: "Available physical devices: {{ lvm_physical_devices }}"
+
+- name: Fail if no physical devices found
+  fail:
+    msg: "No available physical devices found for LVM setup."
+  when: lvm_physical_devices | length == 0
+
+- name: Wait for physical devices to be available
+  wait_for:
+    path: "{{ item }}"
+    state: present
+    timeout: 300
+  loop: "{{ lvm_physical_devices }}"
+  loop_control:
+    label: "{{ item }}"
+  become: true
+
+- name: Create volume group
+  lvg:
+    vg: "{{ lvm_vg_name }}"
+    pvs: "{{ lvm_physical_devices }}"
+    state: present
+  become: true
+
+- name: Create logical volume for data
+  lvol:
+    vg: "{{ lvm_vg_name }}"
+    lv: "{{ lvm_lv_data }}"
+    size: "{{ lvm_lv_size }}"
+    state: present
+  become: true
+
+- name: Create filesystem on data logical volume
+  filesystem:
+    fstype: "{{ filesystem_type }}"
+    dev: "/dev/{{ lvm_vg_name }}/{{ lvm_lv_data }}"
+  become: true
+
+- name: Create mount point for data
+  file:
+    path: "{{ mount_data }}"
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Mount data logical volume
+  mount:
+    path: "{{ mount_data }}"
+    src: "/dev/{{ lvm_vg_name }}/{{ lvm_lv_data }}"
+    fstype: "{{ filesystem_type }}"
+    opts: defaults
+    state: mounted
+  become: true
+
+- name: Get UUID of logical volume
+  command: blkid -s UUID -o value "/dev/{{ lvm_vg_name }}/{{ lvm_lv_data }}"
+  register: lv_uuid
+  become: true
+
+- name: Ensure mount persists in /etc/fstab
+  mount:
+    path: "{{ mount_data }}"
+    src: "/dev/{{ lvm_vg_name }}/{{ lvm_lv_data }}"
+    fstype: "{{ filesystem_type }}"
+    opts: defaults
+    state: present
+  become: true
+
+- name: Rebuild initramfs
+  command: dracut -f
+  become: true

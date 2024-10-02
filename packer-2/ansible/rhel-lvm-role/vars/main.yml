@@ -1,0 +1,14 @@
+#vars/main.yml
+---
+filesystem_type: xfs
+lvm_vg_name: "data_vg"
+lvm_logical_volumes:
+  - { name: "homeVol", size: "1g", mount_point: "/home" }
+  - { name: "varVol", size: "2g", mount_point: "/var" }
+  - { name: "logVol", size: "2g", mount_point: "/var/log" }
+  - { name: "auditVol", size: "3g", mount_point: "/var/log/audit" }
+grub_timeout: 1
+grub_distributor: "CentOS Linux"
+grub_cmdline_linux: "console=tty0 console=ttyS0,115200n8 net.ifnames=0 rd.blacklist=nouveau nvme_core.io_timeout=4294967295"
+cloud_init_user: "ec2-user"
+timezone: "UTC"

@@ -1,0 +1,23 @@
+- name: Create partition
+  community.general.parted:
+    device: "/dev/{{ device }}"
+    number: 1
+    part_end: 9GiB
+    flags:
+    - lvm
+    state: present
+
+- name: Install lvm2 dependency
+  ansible.builtin.package:
+    name: lvm2
+    state: present
+
+- name: Create the volume group
+  community.general.lvg:
+    vg: "{{ volume_group }}"
+    pvs: "/dev/{{ device }}1"
+    pesize: 16
+
+- name: Create and prepare the volumes
+  ansible.builtin.include_tasks: pre-test-prepare-volume.yml
+  loop: "{{ volumes }}"

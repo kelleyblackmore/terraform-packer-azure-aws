@@ -1,0 +1,8 @@
+#!/bin/bash
+# Basic user data script for instance initialization
+
+# Update the system
+sudo dnf update -y
+
+# Configure any additional steps
+echo "Custom userdata script executed!" >> /var/log/userdata.log

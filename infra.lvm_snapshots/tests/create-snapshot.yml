@@ -1,0 +1,15 @@
+- name: Generate snapshot list out of volumes list
+  ansible.builtin.set_fact:
+    _snapshots: "{{ (_snapshots | default([])) + [{'vg': volume_group, 'lv': item.name, 'size': item.size}] }}"
+  loop: "{{ volumes }}"
+
+- name: Create the snapshot
+  vars:
+    snapshot_create_volumes: "{{ _snapshots }}"
+    snapshot_create_set_name: "{{ snapshot_set_name }}"
+  ansible.builtin.include_role:
+    name: snapshot_create
+
+- name: Verify that the snapshot was created
+  ansible.builtin.include_tasks: verify-snapshot-created.yml
+  loop: "{{ volumes }}"

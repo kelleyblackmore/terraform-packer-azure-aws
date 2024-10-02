@@ -1,0 +1,54 @@
+---
+- name: Make sure the required facts are available
+  ansible.builtin.setup:
+    gather_subset:
+    - "!all"
+    - "!min"
+    - kernel
+    - mounts
+
+- name: Run preflight checks
+  ansible.builtin.include_tasks: preflight.yaml
+
+- name: Copy shrink LV dracut module
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /usr/lib/dracut/modules.d/99shrink_lv/
+    mode: "0554"
+  loop:
+  - module-setup.sh
+  - shrink.sh
+
+- name: Resolve and copy the shrink-start script
+  ansible.builtin.template:
+    src: shrink-start.sh.j2
+    dest: /usr/lib/dracut/modules.d/99shrink_lv/shrink-start.sh
+    mode: '0554'
+
+- name: Create the initramfs and reboot to run the module
+  vars:
+    initramfs_add_modules: "shrink_lv lvm"
+  ansible.builtin.include_role:
+    name: initramfs
+
+- name: Remove dracut extend boot module
+  ansible.builtin.file:
+    path: /usr/lib/dracut/modules.d/99shrink_lv
+    state: absent
+
+- name: Retrieve mount points
+  ansible.builtin.setup:
+    gather_subset:
+    - "!all"
+    - "!min"
+    - mounts
+
+- name: Assert that the filesystem has shrunk
+  ansible.builtin.assert:
+    # yamllint disable-line rule:line-length
+    that: (ansible_facts.mounts | selectattr('device', 'equalto', item.device) | map(attribute='size_total') | join | int) <= (item.size | ansible.builtin.human_to_bytes)
+    fail_msg: >
+      Logical Volume {{ item.device }} was not shrunk to {{ item.size }} as requested
+    success_msg: >
+      Logical Volume {{ item.device }} has been shrunk to {{ item.size }} as requested.
+  loop: "{{ shrink_lv_devices }}"

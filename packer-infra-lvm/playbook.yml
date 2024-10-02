@@ -1,0 +1,19 @@
+---
+- name: Configure RHEL 9 with LVM and Packages
+  hosts: all
+  become: true
+  roles:
+    - role: debug-instance-info
+    - role: rhel-manager
+    - role: snapshot_create
+      snapshot_create_set_name: ripu
+      snapshot_create_snapshot_autoextend_threshold: 70
+      snapshot_create_snapshot_autoextend_percent: 20
+      snapshot_create_boot_backup: true
+      snapshot_create_volumes:
+        - vg: rootvg
+          lv: root
+          size: 2G
+        - vg: rootvg
+          lv: var
+          size: 2G

@@ -1,0 +1,48 @@
+---
+# tasks/main.yml for debug-instance-info
+
+- name: Gather basic system info
+  debug:
+    msg: "{{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+
+- name: List block devices
+  command: lsblk
+  register: block_devices
+
+- debug:
+    var: block_devices.stdout_lines
+
+- name: Show disk usage
+  command: df -h
+  register: disk_usage
+
+- debug:
+    var: disk_usage.stdout_lines
+
+- name: Show memory usage
+  command: free -m
+  register: memory_usage
+
+- debug:
+    var: memory_usage.stdout_lines
+
+- name: Show CPU information
+  command: lscpu
+  register: cpu_info
+
+- debug:
+    var: cpu_info.stdout_lines
+
+- name: Show network interfaces
+  command: ip a
+  register: network_info
+
+- debug:
+    var: network_info.stdout_lines
+
+- name: Show instance type and metadata
+  command: curl http://169.254.169.254/latest/meta-data/
+  register: instance_metadata
+
+- debug:
+    var: instance_metadata.stdout_lines

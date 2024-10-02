@@ -1,0 +1,32 @@
+- name: Test removing snapshots after creating them
+  hosts: all
+  become: true
+  vars:
+    volume_group: test_vg
+    volumes:
+    - name: test_lv
+      size: 1g
+      directory: /mnt/test
+    snapshot_set_name: demo_snap
+    snapshot_create_snapshot_autoextend_threshold: 80
+    snapshot_create_snapshot_autoextend_percent: 15
+  tasks:
+  - name: Run pre-test steps
+    ansible.builtin.include_tasks: pre-test-tasks.yml
+
+  - name: Create the snapshot
+    ansible.builtin.include_tasks: create-snapshot.yml
+
+  - name: Remove Snapshot
+    vars:
+      snapshot_remove_set_name: "{{ snapshot_set_name }}"
+    ansible.builtin.include_role:
+      name: snapshot_remove
+
+  - name: Verify that the snapshot no longer exist
+    vars:
+      volume_name: test_lv
+    ansible.builtin.include_tasks: verify-snapshot-not-exist.yml
+
+  - name: Cleanup
+    ansible.builtin.include_tasks: post-test-tasks.yml

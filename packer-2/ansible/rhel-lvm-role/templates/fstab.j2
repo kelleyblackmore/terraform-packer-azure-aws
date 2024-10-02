@@ -1,0 +1,7 @@
+# /etc/fstab
+#
+{% for mount in lvm_logical_volumes %}
+{{ '/dev/mapper/' + lvm_vg_name + '-' + mount.name }}  {{ mount.mount_point }}  {{ filesystem_type }}  defaults,rw  0 0
+{% endfor %}
+{{ target_disk }}{{ partition_prefix }}3  /boot  xfs  defaults,rw  0 0
+{{ target_disk }}{{ partition_prefix }}2  /boot/efi  vfat  defaults,umask=0077  0 0

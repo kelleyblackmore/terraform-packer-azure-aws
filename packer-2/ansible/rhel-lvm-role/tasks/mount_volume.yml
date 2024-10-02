@@ -1,0 +1,36 @@
+---
+- name: Attempt to mount {{ mount_item.name }}
+  mount:
+    path: "{{ mount_item.mount_point }}"
+    src: "/dev/{{ lvm_vg_name }}/{{ mount_item.name }}"
+    fstype: "{{ filesystem_type }}"
+    state: mounted
+  become: true
+  register: mount_result
+  ignore_errors: yes
+
+- name: Display mount error for {{ mount_item.name }}
+  debug:
+    msg: "Failed to mount {{ mount_item.name }} to {{ mount_item.mount_point }}"
+  when: mount_result is failed
+
+- name: Check system logs for mount errors
+  command: journalctl -p err -n 20
+  register: mount_error_logs
+  changed_when: false
+  when: mount_result is failed
+
+- name: Display mount error logs
+  debug:
+    var: mount_error_logs.stdout_lines
+  when: mount_result is failed
+
+- name: Check mount status for {{ mount_item.name }}
+  command: mount | grep "{{ mount_item.mount_point }}"
+  register: mount_check
+  ignore_errors: yes
+  changed_when: false
+
+- name: Display mount status for {{ mount_item.name }}
+  debug:
+    var: mount_check.stdout_lines

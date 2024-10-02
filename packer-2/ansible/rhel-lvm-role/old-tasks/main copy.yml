@@ -1,0 +1,134 @@
+---
+# LVM Configuration Tasks
+- name: List block devices
+  command: lsblk
+  register: result
+  ignore_errors: true
+
+- debug:
+    var: result.stdout_lines
+
+- name: Install LVM2 package
+  dnf:
+    name: lvm2
+    state: present
+
+- name: Initialize Physical Volume for LVM
+  lvg:
+    vg: "{{ lvm_vg_name }}"
+    pvs: "{{ lvm_physical_device }}"
+    state: present
+
+- name: Create Logical Volume for /home
+  lvol:
+    vg: "{{ lvm_vg_name }}"
+    lv: "{{ lvm_lv_home }}"
+    size: "5G"
+    state: present
+
+- name: Create Logical Volume for /var
+  lvol:
+    vg: "{{ lvm_vg_name }}"
+    lv: "{{ lvm_lv_var }}"
+    size: "4G"
+    state: present
+
+- name: Identify the attached EBS volumes
+  set_fact:
+    device1: "/dev/nvme1n1"
+    device2: "/dev/nvme2n1"
+
+- name: Wait for device1 to be available
+  wait_for:
+    path: "{{ device1 }}"
+    state: present
+    timeout: 300
+
+- name: Wait for device2 to be available
+  wait_for:
+    path: "{{ device2 }}"
+    state: present
+    timeout: 300
+
+- name: Create Physical Volumes
+  command: pvcreate {{ device1 }} {{ device2 }}
+  become: true
+
+- name: Create a Volume Group
+  command: vgcreate myvg {{ device1 }} {{ device2 }}
+  become: true
+
+- name: Create a Logical Volume
+  command: lvcreate -l 100%FREE -n mylv myvg
+  become: true
+
+- name: Format the Logical Volume with XFS filesystem
+  filesystem:
+    fstype: xfs
+    dev: /dev/myvg/mylv
+  become: true
+
+- name: Create a Mount Point
+  file:
+    path: /mnt/data
+    state: directory
+  become: true
+
+- name: Mount the Logical Volume
+  mount:
+    path: /mnt/data
+    src: /dev/myvg/mylv
+    fstype: xfs
+    opts: defaults
+    state: mounted
+  become: true
+
+- name: Get the UUID of the Logical Volume
+  command: blkid -s UUID -o value /dev/myvg/mylv
+  register: lv_uuid
+  become: true
+
+- name: Update /etc/fstab to mount at boot
+  lineinfile:
+    path: /etc/fstab
+    line: "UUID={{ lv_uuid.stdout }} /mnt/data xfs defaults 0 0"
+  become: true
+
+
+- name: Create filesystem on /home
+  filesystem:
+    fstype: xfs
+    dev: "/dev/{{ lvm_vg_name }}/{{ lvm_lv_home }}"
+    state: present
+
+- name: Create filesystem on /var
+  filesystem:
+    fstype: xfs
+    dev: "/dev/{{ lvm_vg_name }}/{{ lvm_lv_var }}"
+    state: present
+
+- name: Create mount point for /home
+  file:
+    path: "{{ mount_home }}"
+    state: directory
+
+- name: Create mount point for /var
+  file:
+    path: "{{ mount_var }}"
+    state: directory
+
+- name: Mount /home
+  mount:
+    path: "{{ mount_home }}"
+    src: "/dev/{{ lvm_vg_name }}/{{ lvm_lv_home }}"
+    fstype: xfs
+    opts: defaults
+    state: mounted
+
+- name: Mount /var
+  mount:
+    path: "{{ mount_var }}"
+    src: "/dev/{{ lvm_vg_name }}/{{ lvm_lv_var }}"
+    fstype: xfs
+    opts: defaults
+    state: mounted

@@ -1,0 +1,6 @@
+---
+- import_tasks: pre_checks.yml
+- import_tasks: install_packages.yml
+- import_tasks: lvm_setup.yml
+- import_tasks: filesystem_setup.yml
+- import_tasks: post_installation.yml

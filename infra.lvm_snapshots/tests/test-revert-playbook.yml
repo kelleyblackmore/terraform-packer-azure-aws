@@ -1,0 +1,63 @@
+- name: Test revering to the snapshots
+  hosts: all
+  become: true
+  vars:
+    volume_group: test_vg
+    test_directory: "/mnt/test"
+    volumes:
+    - name: test_lv
+      size: 1g
+      directory: "{{ test_directory }}"
+    test_file: "{{ test_directory }}/foo.txt"
+    snapshot_set_name: demo_snap
+  tasks:
+  - name: Run pre-test steps
+    ansible.builtin.include_tasks: pre-test-tasks.yml
+
+  - name: Create the snapshot
+    ansible.builtin.include_tasks: create-snapshot.yml
+
+  - name: Create test file
+    block:
+    - name: Verify that the file does not exist
+      block:
+      - name: Run ls
+        ansible.builtin.command: "ls {{ test_file }}"
+        register: ls_response
+        changed_when: false
+        ignore_errors: true
+        failed_when: ls_response.rc == 0
+    - name: Create the file using touch
+      ansible.builtin.file:
+        path: "{{ test_file }}"
+        state: touch
+        mode: u=rw,g=r,o=r
+    - name: Verify that the file exists
+      block:
+      - name: Run ls
+        ansible.builtin.command: "ls {{ test_file }}"
+        register: ls_response
+        changed_when: false
+
+  - name: Revert to Snapshot
+    vars:
+      snapshot_revert_set_name: "{{ snapshot_set_name }}"
+    ansible.builtin.include_role:
+      name: snapshot_revert
+
+  - name: Verify that the file no longer exist
+    block:
+    - name: Run ls
+      ansible.builtin.command: "ls {{ test_file }}"
+      register: ls_response
+      changed_when: false
+      ignore_errors: true
+      failed_when: ls_response.rc == 0
+
+  - name: Verify that the snapshot no longer exists
+    vars:
+      volume_name: test_lv
+    ansible.builtin.include_tasks: verify-snapshot-not-exist.yml
+
+  - name: Cleanup
+    ansible.builtin.include_tasks: post-test-tasks.yml

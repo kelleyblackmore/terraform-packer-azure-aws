@@ -1,0 +1,8 @@
+---
+- name: Configure RHEL 9 with LVM and Packages
+  hosts: all
+  become: yes
+  roles:
+    - ansible/debug-instance-info 
+    - ansible/rhel-lvm-role
+    - ansible/debug-instance-info 

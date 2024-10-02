@@ -1,0 +1,70 @@
+---
+- name: Gather facts about block devices
+  ansible.builtin.setup:
+    gather_subset:
+      - hardware
+      - devices
+- name: Debug lvm_physical_volume
+  debug:
+    var: lvm_physical_volume
+
+- name: Create Physical Volume
+  ansible.builtin.command:
+    cmd: pvcreate {{ lvm_physical_volume }}
+  register: pv_create
+
+- name: Debug pv_create
+  debug:
+    var: pv_create
+
+- name: Create Volume Group
+  ansible.builtin.command:
+    cmd: vgcreate {{ lvm_volume_group }} {{ lvm_physical_volume }}
+  register: vg_create
+  when: pv_create is success
+
+- name: Debug vg_create
+  debug:
+    var: vg_create
+
+- name: Create Logical Volumes
+  ansible.builtin.lvol:
+    vg: "{{ lvm_volume_group }}"
+    lv: "{{ item.name }}"
+    size: "{{ item.size }}"
+  loop: "{{ lvm_logical_volumes }}"
+  register: lv_creation
+
+- name: Format Logical Volumes
+  ansible.builtin.filesystem:
+    fstype: xfs
+    dev: "/dev/{{ lvm_volume_group }}/{{ item.name }}"
+  loop: "{{ lvm_logical_volumes }}"
+  when: lv_creation.changed
+
+- name: Create Mount Points
+  ansible.builtin.file:
+    path: "/mnt/{{ item.name }}"
+    state: directory
+  loop: "{{ lvm_logical_volumes }}"
+
+- name: Mount Logical Volumes
+  ansible.builtin.mount:
+    path: "/mnt/{{ item.name }}"
+    src: "/dev/{{ lvm_volume_group }}/{{ item.name }}"
+    fstype: xfs
+    state: mounted
+  loop: "{{ lvm_logical_volumes }}"
+
+- name: Backup /etc/fstab
+  ansible.builtin.copy:
+    src: /etc/fstab
+    dest: /etc/fstab.bak
+    remote_src: yes
+
+- name: Add Logical Volumes to fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    line: "/dev/{{ lvm_volume_group }}/{{ item.name }} /mnt/{{ item.name }} xfs defaults 0 0"
+    state: present
+  loop: "{{ lvm_logical_volumes }}"

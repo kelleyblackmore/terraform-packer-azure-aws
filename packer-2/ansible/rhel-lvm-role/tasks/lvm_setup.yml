@@ -1,0 +1,14 @@
+---
+- name: Create volume group
+  lvg:
+    vg: "{{ lvm_vg_name }}"
+    pvs: "{{ target_partition }}"
+  become: true
+
+- name: Create logical volumes
+  lvol:
+    vg: "{{ lvm_vg_name }}"
+    lv: "{{ item.name }}"
+    size: "{{ item.size }}"
+  loop: "{{ lvm_logical_volumes }}"
+  become: true

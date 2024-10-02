@@ -1,0 +1,14 @@
+#!/bin/bash
+
+activate_volume_groups(){
+    for vg in `/usr/sbin/lvm vgs -o name --noheading 2>/dev/null`; do
+        /usr/sbin/lvm vgchange -ay $vg
+    done
+}
+
+main() {
+    activate_volume_groups
+    /usr/bin/shrink.sh {% for device in shrink_lv_devices %}--device={{ device.device }}:{{ device.size }} {% endfor %} 1>&2 >/dev/kmsg
+}
+
+main "$0"

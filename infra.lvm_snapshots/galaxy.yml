@@ -1,0 +1,31 @@
+---
+namespace: infra
+name: lvm_snapshots
+version: 2.1.0
+readme: README.md
+authors:
+- Ygal Blum <yblum@redhat.com>
+- Bob Mader <bob@redhat.com>
+description: Ansible role for creating and rolling back LVM snapshots
+license_file: LICENSE
+tags:
+- ansible
+- lvm
+- storage
+dependencies:
+  "community.general": "*"
+repository: https://github.com/redhat-cop/infra.lvm_snapshots
+documentation: https://github.com/redhat-cop/infra.lvm_snapshots
+homepage: https://github.com/redhat-cop/infra.lvm_snapshots
+issues: https://github.com/redhat-cop/infra.lvm_snapshots/issues
+build_ignore:
+- .ansible-lint
+- .pylintrc
+- .yamllint
+- .git
+- .gitignore
+- ansible.cfg
+- requirements.yml
+- tests
+- vendor
+...

@@ -1,0 +1,56 @@
+---
+# tasks/install_packages.yml
+- name: Clean yum cache
+  command: yum clean all
+  become: true
+
+- name: Update yum cache
+  command: yum makecache
+  become: true
+
+
+- name: Install base packages
+  yum:
+    name:
+      - parted
+      - util-linux
+      - lvm2
+      - xfsprogs
+      - e2fsprogs
+      - dosfstools
+    state: present
+  become: true
+
+
+
+- name: Install additional required packages
+  yum:
+    name:
+      - cloud-init
+      - dracut
+      - yum-utils
+      - device-mapper-persistent-data
+      - lshw
+      - chrony
+      - cloud-utils-growpart
+      - dhcp-client
+      - dracut-config-generic
+      - efibootmgr
+      - firewalld
+      - gdisk
+      - grubby
+      - kernel
+      - kexec-tools
+      - libnsl
+      - python3-pip
+      - rng-tools
+      - unzip
+    state: present
+  become: true
+
+
+- name: Update all packages
+  yum:
+    name: '*'
+    state: latest
+  become: true
